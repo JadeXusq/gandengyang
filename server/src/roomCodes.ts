@@ -1,0 +1,58 @@
+/**
+ * 房号注册表：6 位数字房号 → Colyseus roomId
+ */
+const codeToRoomId = new Map<string, string>();
+
+export function registerCode(roomId: string, preferred?: string): string {
+  const want = String(preferred || "")
+    .replace(/\D/g, "")
+    .slice(0, 6);
+  if (want) {
+    if (want.length !== 6) throw new Error("房号无效");
+    if (codeToRoomId.has(want)) throw new Error("房号已被占用");
+    codeToRoomId.set(want, roomId);
+    return want;
+  }
+  let code: string;
+  do {
+    code = String(Math.floor(100000 + Math.random() * 900000));
+  } while (codeToRoomId.has(code));
+  codeToRoomId.set(code, roomId);
+  return code;
+}
+
+export function resolveCode(code: string): string | undefined {
+  return codeToRoomId.get(code);
+}
+
+export function unregisterCode(code: string): void {
+  codeToRoomId.delete(code);
+}
+
+export type DeviceSeat = {
+  roomId: string;
+  code: string;
+  seat: number;
+  phase: string;
+};
+
+const deviceSeats = new Map<string, DeviceSeat>();
+
+export function registerDeviceSeat(deviceId: string, seat: DeviceSeat): void {
+  if (!deviceId) return;
+  deviceSeats.set(deviceId, seat);
+}
+
+export function lookupDeviceSeat(deviceId: string): DeviceSeat | undefined {
+  return deviceSeats.get(deviceId);
+}
+
+export function unregisterDeviceSeat(deviceId: string): void {
+  if (deviceId) deviceSeats.delete(deviceId);
+}
+
+export function unregisterRoomDevices(roomId: string): void {
+  for (const [id, seat] of [...deviceSeats]) {
+    if (seat.roomId === roomId) deviceSeats.delete(id);
+  }
+}

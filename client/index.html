@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>干瞪眼</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <!-- 大厅 -->
+    <div id="lobby" class="panel">
+      <h1>干瞪眼</h1>
+      <div class="lobby-row">
+        <label
+          >昵称 <input id="name" maxlength="8" placeholder="无名客"
+        /></label>
+      </div>
+      <div class="lobby-row" id="counts">
+        <button data-n="2">2人</button>
+        <button data-n="3">3人</button>
+        <button data-n="4" class="on">4人</button>
+        <button data-n="5">5人</button>
+      </div>
+      <div class="lobby-btns">
+        <button id="btn-create" class="primary">创建房间</button>
+        <button id="btn-join">加入房间</button>
+      </div>
+      <div class="lobby-row join-row">
+        <input id="room-code-input" maxlength="6" placeholder="6位房号" />
+        <button id="btn-join-code">确认加入</button>
+      </div>
+    </div>
+
+    <!-- 等待室 -->
+    <div id="room" class="panel hidden">
+      <h2>房间 <span id="room-code"></span></h2>
+      <div id="seats"></div>
+      <p id="room-status"></p>
+      <div class="room-btns">
+        <button id="btn-ai">添加机器人</button>
+        <button id="btn-ready">准备</button>
+        <button id="btn-quit">退出</button>
+      </div>
+    </div>
+
+    <!-- 牌桌 -->
+    <div id="table" class="panel hidden">
+      <div id="opponents"></div>
+      <div id="center">
+        <div id="last-play"></div>
+        <div id="stock-info"></div>
+      </div>
+      <div id="turn-hint"></div>
+      <div id="countdown"></div>
+      <div id="hand"></div>
+      <div id="actions">
+        <button id="btn-pass" class="hidden">过</button>
+      </div>
+    </div>
+
+    <!-- 结算 -->
+    <div id="result" class="panel hidden">
+      <h2 id="result-title">结算</h2>
+      <div id="result-list"></div>
+      <div class="result-btns">
+        <button id="btn-again" class="primary">再来一局</button>
+        <button id="btn-exit">返回大厅</button>
+      </div>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

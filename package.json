@@ -1,0 +1,14 @@
+{
+  "name": "gandengyang",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "test": "npm run test -w shared",
+    "server": "npm run dev -w server",
+    "dev": "npm run dev -w client"
+  }
+}
