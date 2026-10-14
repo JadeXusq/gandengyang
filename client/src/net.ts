@@ -3,9 +3,10 @@
  */
 import { Client, Room } from "colyseus.js";
 
+// WebSocket 地址：优先使用 VITE_WS 环境变量，否则根据页面协议自动选择
 const WS_URL =
   (import.meta.env.VITE_WS as string | undefined)?.trim() ||
-  `ws://${location.hostname}:2567`;
+  `${location.protocol === "https:" ? "wss" : "ws"}://${location.hostname}:2567`;
 const HTTP_URL = WS_URL.replace(/^ws/, "http");
 const DEVICE_KEY = "gdy.device";
 
