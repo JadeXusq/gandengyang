@@ -10,68 +10,442 @@
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <!-- 大厅 -->
-    <div id="lobby" class="panel">
-      <h1>干瞪眼</h1>
-      <div class="lobby-row">
-        <label
-          >昵称 <input id="name" maxlength="8" placeholder="无名客"
-        /></label>
+    <!-- ========== 大厅 ========== -->
+    <div id="lobby" class="screen hidden">
+      <div class="lobby-scroll">
+        <!-- 顶部标题 -->
+        <div class="lobby-header">
+          <div>
+            <h1 class="game-title">干瞪眼</h1>
+            <p class="game-subtitle">四川经典 · 接龙扑克</p>
+          </div>
+          <button class="icon-btn rules-btn" id="btn-rules" title="规则">
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path
+                d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <!-- 继续对局卡片 -->
+        <div id="resume-card" class="card resume-card hidden">
+          <div class="resume-icon">
+            <svg
+              viewBox="0 0 24 24"
+              width="28"
+              height="28"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M1 4v6h6" />
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+            </svg>
+          </div>
+          <div class="resume-info">
+            <div class="resume-title">回到未完成的对局</div>
+            <div class="resume-sub" id="resume-sub">
+              房间 482913 · 等待你出牌
+            </div>
+          </div>
+          <button class="btn-gold-outline" id="btn-resume">进入</button>
+        </div>
+
+        <!-- 战绩卡片 -->
+        <div class="card stats-card">
+          <div class="stats-header">
+            <span class="stats-title">我的战绩</span>
+            <button class="btn-link" id="btn-stats-detail">查看详情</button>
+          </div>
+          <div class="stats-row">
+            <div class="stat-item">
+              <div class="stat-value" id="stat-games">0</div>
+              <div class="stat-label">总场次</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="stat-winrate">0%</div>
+              <div class="stat-label">胜率</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="stat-points">0</div>
+              <div class="stat-label">总积分</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 快速开始 -->
+        <div class="section quick-start">
+          <div class="section-header">
+            <h2 class="section-title">快速开始</h2>
+            <span class="section-sub">2-5 人 · 一副牌</span>
+          </div>
+          <div class="player-selector" id="counts">
+            <button class="player-btn" data-n="2">2人</button>
+            <button class="player-btn" data-n="3">3人</button>
+            <button class="player-btn on" data-n="4">4人</button>
+            <button class="player-btn" data-n="5">5人</button>
+          </div>
+          <button class="btn-gold btn-create-room" id="btn-create">
+            创建房间
+          </button>
+        </div>
+
+        <!-- 加入房间 -->
+        <div class="section join-section">
+          <div class="section-header">
+            <h2 class="section-title">加入房间</h2>
+            <span class="section-sub">6 位房号</span>
+          </div>
+          <div class="code-inputs" id="code-inputs">
+            <input
+              class="code-digit"
+              maxlength="1"
+              data-idx="0"
+              inputmode="numeric"
+            />
+            <input
+              class="code-digit"
+              maxlength="1"
+              data-idx="1"
+              inputmode="numeric"
+            />
+            <input
+              class="code-digit"
+              maxlength="1"
+              data-idx="2"
+              inputmode="numeric"
+            />
+            <input
+              class="code-digit"
+              maxlength="1"
+              data-idx="3"
+              inputmode="numeric"
+            />
+            <input
+              class="code-digit"
+              maxlength="1"
+              data-idx="4"
+              inputmode="numeric"
+            />
+            <input
+              class="code-digit"
+              maxlength="1"
+              data-idx="5"
+              inputmode="numeric"
+            />
+          </div>
+          <button class="btn-gold-outline btn-join-room" id="btn-join">
+            加入房间
+          </button>
+        </div>
+
+        <!-- 小贴士 -->
+        <div class="tip-card">
+          <svg
+            class="tip-icon"
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M9 18h6" />
+            <path d="M10 22h4" />
+            <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
+          </svg>
+          <span class="tip-text">小贴士：上家出 7，你只能出 8、2 或炸弹</span>
+        </div>
+
+        <div class="lobby-spacer"></div>
       </div>
-      <div class="lobby-row" id="counts">
-        <button data-n="2">2人</button>
-        <button data-n="3">3人</button>
-        <button data-n="4" class="on">4人</button>
-        <button data-n="5">5人</button>
+
+      <!-- 底部导航 -->
+      <nav class="bottom-nav">
+        <button class="nav-item active" data-tab="home">
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span>首页</span>
+        </button>
+        <button class="nav-item" data-tab="rank">
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+            <path d="M4 22h16" />
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22" />
+            <path
+              d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"
+            />
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+          </svg>
+          <span>排行榜</span>
+        </button>
+        <button class="nav-item" data-tab="me">
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          <span>我的</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ========== 房间等待 ========== -->
+    <div id="room" class="screen hidden">
+      <!-- 顶部栏 -->
+      <div class="top-bar">
+        <button class="icon-btn back-btn" id="btn-quit">
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <h2 class="top-bar-title">房间等待</h2>
+        <button class="icon-btn share-btn" id="btn-share" title="分享">
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+            <polyline points="16 6 12 2 8 6" />
+            <line x1="12" y1="2" x2="12" y2="15" />
+          </svg>
+        </button>
       </div>
-      <div class="lobby-btns">
-        <button id="btn-create" class="primary">创建房间</button>
-        <button id="btn-join">加入房间</button>
+
+      <div class="room-scroll">
+        <!-- 房号卡片 -->
+        <div class="card room-code-card">
+          <div class="room-code-header">
+            <span class="room-code-label">房间房号</span>
+            <button class="btn-copy" id="btn-copy-code">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path
+                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                />
+              </svg>
+              复制
+            </button>
+          </div>
+          <div class="room-code-display" id="room-code">------</div>
+          <div class="room-code-hint">分享房号，邀请好友加入对局</div>
+        </div>
+
+        <!-- 玩家座位 -->
+        <div class="section">
+          <div class="section-header">
+            <h2 class="section-title">玩家座位</h2>
+            <span class="section-sub" id="seat-count">0 / 4 已加入</span>
+          </div>
+          <div class="seats-grid" id="seats"></div>
+        </div>
+
+        <!-- 游戏设置 -->
+        <div class="card settings-card">
+          <div class="setting-row">
+            <span class="setting-label">人数上限</span>
+            <span class="setting-value" id="setting-players">4 人</span>
+          </div>
+          <div class="setting-divider"></div>
+          <div class="setting-row">
+            <span class="setting-label">用牌</span>
+            <span class="setting-value">1 副 · 54 张</span>
+          </div>
+          <div class="setting-divider"></div>
+          <div class="setting-row">
+            <span class="setting-label">摸牌规则</span>
+            <span class="setting-value">全员过牌后各摸 1 张</span>
+          </div>
+          <div class="setting-divider"></div>
+          <div class="setting-row-col">
+            <span class="setting-label">规则变体</span>
+            <div class="rule-tags">
+              <span class="rule-tag active">炸弹加倍</span>
+              <span class="rule-tag">报单罚分</span>
+              <span class="rule-tag">赖子打法</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="room-hint">人齐后全员准备即可开局 · 也可添加机器人快速开始</p>
+
+        <div class="room-spacer"></div>
       </div>
-      <div class="lobby-row join-row">
-        <input id="room-code-input" maxlength="6" placeholder="6位房号" />
-        <button id="btn-join-code">确认加入</button>
+
+      <!-- 底部按钮 -->
+      <div class="room-actions">
+        <button class="btn-gold-outline btn-ai" id="btn-ai">添加机器人</button>
+        <button class="btn-gold btn-ready" id="btn-ready">准备</button>
       </div>
     </div>
 
-    <!-- 等待室 -->
-    <div id="room" class="panel hidden">
-      <h2>房间 <span id="room-code"></span></h2>
-      <div id="seats"></div>
-      <p id="room-status"></p>
-      <div class="room-btns">
-        <button id="btn-ai">添加机器人</button>
-        <button id="btn-ready">准备</button>
-        <button id="btn-quit">退出</button>
+    <!-- ========== 牌桌 ========== -->
+    <div id="table" class="screen hidden">
+      <!-- 顶部信息栏 -->
+      <div class="table-header">
+        <div class="table-header-left">
+          <span class="table-tag" id="table-room-code">房号 482913</span>
+          <span class="table-tag" id="table-stock">底牌 32 张</span>
+          <span class="table-tag bomb-tag" id="table-bombs">炸弹 ×1</span>
+        </div>
+        <button class="icon-btn exit-btn" id="btn-table-exit" title="退出">
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- 对手区域 -->
+      <div class="opponents-row" id="opponents"></div>
+
+      <!-- 中央出牌区 -->
+      <div class="center-area">
+        <div class="last-play-info" id="last-play-label"></div>
+        <div class="last-play-cards" id="last-play"></div>
+        <div class="turn-prompt" id="turn-hint"></div>
+        <div class="turn-sub" id="turn-sub"></div>
+        <div class="countdown-display" id="countdown"></div>
+      </div>
+
+      <!-- 我的手牌区 -->
+      <div class="my-area">
+        <div class="my-info">
+          <div class="my-avatar">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path
+                d="M12 2L9 9H2L7.5 13.5L5.5 21L12 16.5L18.5 21L16.5 13.5L22 9H15L12 2Z"
+              />
+            </svg>
+          </div>
+          <div class="my-info-text">
+            <div class="my-name" id="my-name">我</div>
+            <div class="my-count" id="my-count">0 张</div>
+          </div>
+        </div>
+        <button class="btn-report" id="btn-report">报单</button>
+      </div>
+
+      <div class="hand-area" id="hand"></div>
+
+      <!-- 底部操作按钮 -->
+      <div class="table-actions">
+        <button class="btn-action btn-pass-action" id="btn-pass">不出</button>
+        <button class="btn-gold btn-play-action" id="btn-play">出牌</button>
       </div>
     </div>
 
-    <!-- 牌桌 -->
-    <div id="table" class="panel hidden">
-      <div id="opponents"></div>
-      <div id="center">
-        <div id="last-play"></div>
-        <div id="stock-info"></div>
+    <!-- ========== 结算 ========== -->
+    <div id="result" class="screen hidden">
+      <div class="result-scroll">
+        <h2 class="result-title">本局结算</h2>
+        <div class="result-sub" id="result-sub">
+          房间 482913 · 标准规则 · 炸弹加倍
+        </div>
+
+        <!-- 赢家卡片 -->
+        <div class="card winner-card" id="winner-card">
+          <div class="winner-crown">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="#ffd700">
+              <path d="M2 20h20L19 8l-5 5-2-7-2 7-5-5z" />
+            </svg>
+          </div>
+          <div class="winner-avatar" id="winner-avatar">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="#1a3a2a">
+              <path
+                d="M12 2L9 9H2L7.5 13.5L5.5 21L12 16.5L18.5 21L16.5 13.5L22 9H15L12 2Z"
+              />
+            </svg>
+          </div>
+          <div class="winner-badge" id="winner-badge">第 1 名 · 胜</div>
+          <div class="winner-name" id="winner-name">小明</div>
+          <div class="winner-desc" id="winner-desc">出完手牌 · 0 张剩余</div>
+          <div class="winner-score" id="winner-score">+18</div>
+        </div>
+
+        <!-- 其他玩家 -->
+        <div class="card result-list-card">
+          <div class="result-list" id="result-list"></div>
+        </div>
+
+        <!-- 游戏统计 -->
+        <div class="result-stats" id="result-stats">
+          <span class="result-stat-tag" id="stat-bomb">炸弹 ×1 · 得分 ×2</span>
+          <span class="result-stat-tag" id="stat-draw">摸牌 14 张</span>
+          <span class="result-stat-tag" id="stat-report">报单 1 次</span>
+        </div>
+
+        <div class="result-spacer"></div>
       </div>
-      <div id="turn-hint"></div>
-      <div id="countdown"></div>
-      <div id="hand"></div>
-      <div id="actions">
-        <button id="btn-pass" class="hidden">过</button>
+
+      <div class="result-actions">
+        <button class="btn-gold btn-again" id="btn-again">再来一局</button>
+        <button class="btn-gold-outline btn-exit" id="btn-exit">
+          返回大厅
+        </button>
       </div>
     </div>
 
-    <!-- 结算 -->
-    <div id="result" class="panel hidden">
-      <h2 id="result-title">结算</h2>
-      <div id="result-list"></div>
-      <div class="result-btns">
-        <button id="btn-again" class="primary">再来一局</button>
-        <button id="btn-exit">返回大厅</button>
-      </div>
-    </div>
-
-    <div id="toast" class="hidden"></div>
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>
