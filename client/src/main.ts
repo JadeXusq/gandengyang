@@ -2,7 +2,22 @@
  * 入口：界面切换与出牌交互（DOM 渲染 - 新版 UI）
  */
 import { cardFromId, cardWeight, isRed } from "@gdy/shared";
-import { Net, RoundOver } from "./net";
+import { Net, RoundOver, deviceId, getSavedMatch } from "./net";
+import {
+  ActiveMatch,
+  Profile,
+  bindAccount,
+  createAccount,
+  fetchActiveMatch,
+  fetchBoundAccount,
+  fetchLeaderboard,
+  fetchProfile,
+  getAccountCreds,
+  myProfileId,
+  playerName,
+  setAccountCreds,
+  setPlayerName,
+} from "./api";
 
 const $ = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -51,10 +66,69 @@ function toast(msg: string, ms = 2200): void {
 }
 
 // ---------- 界面切换 ----------
-function show(id: "lobby" | "room" | "table" | "result"): void {
-  (["lobby", "room", "table", "result"] as const).forEach((s) =>
-    $(s).classList.toggle("hidden", s !== id)
+type ScreenId =
+  | "lobby"
+  | "rank"
+  | "me"
+  | "room"
+  | "table"
+  | "result"
+  | "rules";
+
+const ALL_SCREENS: ScreenId[] = [
+  "lobby",
+  "rank",
+  "me",
+  "room",
+  "table",
+  "result",
+  "rules",
+];
+const TAB_SCREENS: ScreenId[] = ["lobby", "rank", "me"];
+
+function show(id: ScreenId): void {
+  ALL_SCREENS.forEach((s) => $(s).classList.toggle("hidden", s !== id));
+  // 底部导航仅 Tab 主界面显示
+  $("bottom-nav").classList.toggle("hidden", !TAB_SCREENS.includes(id));
+  // 导航激活态（首页 Tab 的 data-tab 为 home，屏幕 ID 为 lobby）
+  const activeTab = id === "lobby" ? "home" : id;
+  document.querySelectorAll(".nav-item").forEach((b) =>
+    b.classList.toggle("active", (b as HTMLElement).dataset.tab === activeTab)
   );
+  if (id === "rank") void renderLeaderboard();
+  if (id === "me") void renderProfile();
+  if (id === "lobby") void refreshHome();
+}
+
+// ---------- 小工具 ----------
+function escapeHtml(s: string): string {
+  return s.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[c] as string
+  );
+}
+
+function fmtScore(n: number): string {
+  return n > 0 ? `+${n}` : String(n);
+}
+
+function winRate(p: Profile): string {
+  return p.games > 0 ? `${Math.round((p.wins / p.games) * 100)}%` : "0%";
+}
+
+function shortId(id: string): string {
+  return id.length > 8 ? `${id.slice(0, 4)}…${id.slice(-4)}` : id;
+}
+
+function crownSvg(color: string): string {
+  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg"><path d="M4 17.5 2.8 9.2l4.6 3.4L12 5l4.6 7.6 4.6-3.4L20 17.5z"/></svg>`;
 }
 
 // ---------- 房号输入 ----------
@@ -69,8 +143,9 @@ function setupCodeInputs(): void {
       }
     });
     input.addEventListener("keydown", (e) => {
+      // 注：当前环境的 lib.dom 事件映射经过裁剪，e 被推断为 Event，需断言取值
       if (
-        e.key === "Backspace" &&
+        (e as KeyboardEvent).key === "Backspace" &&
         !(input as HTMLInputElement).value &&
         idx > 0
       ) {
@@ -108,9 +183,8 @@ $("counts").addEventListener("click", (e) => {
 });
 
 $("btn-create").onclick = async () => {
-  const name = localStorage.getItem("gdy.name") ?? "无名客";
   try {
-    await net.create(name, maxPlayers);
+    await net.create(playerName(), maxPlayers);
     show("room");
   } catch (e) {
     toast((e as Error).message || "创建失败");
@@ -123,9 +197,8 @@ $("btn-join").onclick = () => {
     toast("请输入 6 位房号");
     return;
   }
-  const name = localStorage.getItem("gdy.name") ?? "无名客";
   net
-    .joinByCode(name, code)
+    .joinByCode(playerName(), code)
     .then(() => show("room"))
     .catch((e) => toast((e as Error).message));
 };
@@ -300,6 +373,15 @@ function renderTable(state: any): void {
   const me = players.find((p) => p.seat === mySeat);
   $("my-name").textContent = me?.name ?? "我";
   $("my-count").textContent = `${net.hand.length} 张`;
+
+  // 报单状态：剩 1 张时服务端自动报单，这里展示状态徽标
+  const btnReport = $("btn-report");
+  const showReport = !!me && me.handCount === 1 && !me.finished;
+  btnReport.classList.toggle("hidden", !showReport);
+  if (showReport) {
+    btnReport.textContent = me.reported ? "已报单" : "报单";
+    btnReport.classList.toggle("reported", !!me.reported);
+  }
 
   // 最后出牌
   const lp = state.lastPlay;
@@ -556,6 +638,297 @@ $("btn-exit").onclick = async () => {
   show("lobby");
 };
 
+// ---------- 首页数据（战绩 + 断线重连） ----------
+let resumeMatch: ActiveMatch | null = null;
+
+async function refreshHome(): Promise<void> {
+  // 战绩卡
+  try {
+    const p = await fetchProfile();
+    if (p) {
+      $("stat-games").textContent = String(p.games);
+      $("stat-winrate").textContent = winRate(p);
+      $("stat-points").textContent = fmtScore(p.totalNet);
+    }
+  } catch {
+    // 服务未启动时保留默认展示
+  }
+  // 断线重连横幅
+  try {
+    const m = await fetchActiveMatch();
+    resumeMatch = m;
+    if (m) {
+      const pretty =
+        m.code.length === 6
+          ? `${m.code.slice(0, 3)} ${m.code.slice(3)}`
+          : m.code;
+      $("resume-sub").textContent = `房间 ${pretty} · ${
+        m.phase === "PLAYING" ? "对局进行中" : "等待玩家加入"
+      }`;
+      $("resume-card").classList.remove("hidden");
+    } else {
+      $("resume-card").classList.add("hidden");
+    }
+  } catch {
+    // 忽略网络异常
+  }
+}
+
+$("btn-resume").onclick = async () => {
+  if (!resumeMatch) return;
+  try {
+    const saved = getSavedMatch();
+    if (
+      resumeMatch.phase === "PLAYING" &&
+      saved &&
+      saved.roomId === resumeMatch.roomId
+    ) {
+      // 刷新页面后凭 reconnectionToken 回到原座位
+      await net.reconnect();
+    } else if (resumeMatch.phase === "WAITING") {
+      // 等待期直接重进房间
+      await net.joinById(resumeMatch.roomId, playerName());
+    } else {
+      toast("对局已开始，暂时无法中途加入");
+      return;
+    }
+    $("resume-card").classList.add("hidden");
+  } catch (e) {
+    toast((e as Error).message || "回到对局失败");
+    void refreshHome();
+  }
+};
+
+// ---------- 排行榜 ----------
+async function renderLeaderboard(): Promise<void> {
+  let rows: Profile[] = [];
+  try {
+    rows = await fetchLeaderboard();
+  } catch {
+    toast("排行榜加载失败，请稍后重试");
+  }
+
+  const podium = $("podium");
+  const list = $("rank-list");
+  const myRankCard = $("my-rank-card");
+
+  if (rows.length === 0) {
+    podium.innerHTML = "";
+    list.innerHTML = `<div class="rank-empty">还没有排名数据，快去打几局吧</div>`;
+    myRankCard.classList.add("hidden");
+    return;
+  }
+
+  // 领奖台：第 2 名在左，第 1 名居中，第 3 名在右
+  const order = [1, 0, 2];
+  podium.innerHTML = order
+    .map((dataIdx) => {
+      const p = rows[dataIdx];
+      if (!p) return "";
+      const rank = dataIdx + 1;
+      const crownColor =
+        rank === 1 ? "#f5d76e" : rank === 2 ? "#c9d2cc" : "#c99a6b";
+      return `<div class="podium-col rank${rank}">
+        <span class="podium-crown">${crownSvg(crownColor)}</span>
+        <div class="podium-avatar">${escapeHtml(p.name.charAt(0))}</div>
+        <div class="podium-name">${escapeHtml(p.name)}</div>
+        <div class="podium-score">${fmtScore(p.totalNet)}</div>
+        <div class="podium-bar">${rank}</div>
+      </div>`;
+    })
+    .join("");
+
+  const rest = rows.slice(3, 8);
+  list.innerHTML =
+    rest
+      .map((p, i) => {
+        const rank = i + 4;
+        const isMe = p.deviceId === myProfileId();
+        return `<div class="rank-row${isMe ? " me" : ""}">
+          <div class="rank-num">${rank}</div>
+          <div class="rank-avatar-sm${isMe ? " me" : ""}">${escapeHtml(
+            p.name.charAt(0)
+          )}</div>
+          <div class="rank-info">
+            <div class="rank-name">${escapeHtml(p.name)}</div>
+            <div class="rank-stats">${p.games} 场 · 胜率 ${winRate(p)}</div>
+          </div>
+          <div class="rank-score">${fmtScore(p.totalNet)}</div>
+        </div>`;
+      })
+      .join("") || `<div class="rank-empty">更多排名即将放出</div>`;
+
+  // 我的排名
+  const myIdx = rows.findIndex((p) => p.deviceId === myProfileId());
+  const myRow = myIdx >= 0 ? rows[myIdx] : null;
+  if (myRow) {
+    myRankCard.classList.remove("hidden");
+    $("my-rank-badge").textContent = String(myIdx + 1);
+    $("my-rank-avatar").textContent = myRow.name.charAt(0);
+    $("my-rank-name").textContent = myRow.name;
+    $("my-rank-stats").textContent = `${myRow.games} 场 · 胜率 ${winRate(
+      myRow
+    )}`;
+    $("my-rank-score").textContent = fmtScore(myRow.totalNet);
+  } else {
+    myRankCard.classList.add("hidden");
+  }
+}
+
+// ---------- 个人中心 ----------
+function fillProfileStats(p: Profile): void {
+  $("me-games").textContent = String(p.games);
+  $("me-wins").textContent = String(p.wins);
+  $("me-winrate").textContent = winRate(p);
+  $("me-net").textContent = fmtScore(p.totalNet);
+}
+
+async function renderProfile(): Promise<void> {
+  $("profile-name").textContent = playerName();
+
+  let profile: Profile | null = null;
+  let accountId: string | null = null;
+  try {
+    const bound = await fetchBoundAccount();
+    accountId = bound.accountId;
+    profile = bound.profile;
+  } catch {
+    // 服务不在线时走本地展示
+  }
+  if (!profile) {
+    try {
+      profile = await fetchProfile();
+    } catch {
+      // 忽略
+    }
+  }
+  if (profile) fillProfileStats(profile);
+
+  $("profile-id").textContent = accountId
+    ? `正式账号 · ID ${shortId(accountId)}`
+    : `游客战绩 · ID ${shortId(deviceId())}`;
+
+  const btn = $("btn-bind");
+  const boundState = !!accountId || !!getAccountCreds();
+  btn.textContent = boundState ? "已绑定" : "绑定账号";
+  btn.classList.toggle("bound", boundState);
+}
+
+$("btn-bind").onclick = async () => {
+  const btn = $("btn-bind");
+  if (btn.classList.contains("bound")) {
+    toast("当前设备已绑定账号");
+    return;
+  }
+  btn.textContent = "绑定中…";
+  try {
+    const { accountId, token } = await createAccount(playerName());
+    setAccountCreds({ accountId, token });
+    await bindAccount(accountId, token);
+    toast("绑定成功，游客战绩已合并");
+    await renderProfile();
+    void refreshHome();
+  } catch (e) {
+    toast((e as Error).message || "绑定失败");
+    btn.textContent = "绑定账号";
+  }
+};
+
+$("row-restore").onclick = () =>
+  $("account-panel").classList.toggle("hidden");
+$("btn-restore-cancel").onclick = () =>
+  $("account-panel").classList.add("hidden");
+$("btn-restore-confirm").onclick = async () => {
+  const id = $<HTMLInputElement>("restore-id").value.trim();
+  const token = $<HTMLInputElement>("restore-token").value.trim();
+  if (!id || !token) {
+    toast("请填写账号 ID 和凭证");
+    return;
+  }
+  try {
+    await bindAccount(id, token);
+    setAccountCreds({ accountId: id, token });
+    toast("账号恢复成功");
+    $("account-panel").classList.add("hidden");
+    await renderProfile();
+    void refreshHome();
+  } catch (e) {
+    toast((e as Error).message || "恢复失败，请检查账号信息");
+  }
+};
+
+// 昵称修改
+$("btn-edit-name").onclick = () => {
+  const row = $("name-edit-row");
+  row.classList.toggle("hidden");
+  if (!row.classList.contains("hidden")) {
+    const input = $<HTMLInputElement>("name-input");
+    input.value = playerName();
+    input.focus();
+  }
+};
+$("btn-save-name").onclick = () => {
+  const v = $<HTMLInputElement>("name-input").value.trim();
+  if (!v) {
+    toast("昵称不能为空");
+    return;
+  }
+  setPlayerName(v);
+  $("profile-name").textContent = playerName();
+  $("name-edit-row").classList.add("hidden");
+  toast("昵称已保存");
+};
+
+// 音效开关（本地偏好，供后续音效实现读取）
+const SOUND_KEY = "gdy.sound";
+$("switch-sound").classList.toggle(
+  "on",
+  localStorage.getItem(SOUND_KEY) !== "off"
+);
+$("switch-sound").onclick = () => {
+  const sw = $("switch-sound");
+  const on = !sw.classList.contains("on");
+  sw.classList.toggle("on", on);
+  localStorage.setItem(SOUND_KEY, on ? "on" : "off");
+  toast(on ? "音效已开启" : "音效已关闭");
+};
+
+// ---------- 全局导航 ----------
+document.querySelectorAll(".nav-item").forEach((b) => {
+  b.addEventListener("click", () => {
+    const tab = (b as HTMLElement).dataset.tab;
+    const target: ScreenId | null =
+      tab === "home"
+        ? "lobby"
+        : tab === "rank" || tab === "me"
+        ? tab
+        : null;
+    if (target) show(target);
+  });
+});
+
+$("btn-rules").onclick = () => show("rules");
+$("btn-rules-back").onclick = () => show("lobby");
+$("btn-rules-start").onclick = () => show("lobby");
+$("row-rules").onclick = () => show("rules");
+$("row-feedback").onclick = () => toast("反馈渠道即将开放，敬请期待");
+$("btn-stats-detail").onclick = () => show("me");
+
+// 分享房号
+$("btn-share").onclick = () => {
+  const code = ($("room-code").textContent ?? "").replace(/\s/g, "");
+  if (!code) return;
+  const text = `来一起玩干瞪眼！房间号：${code}`;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => toast("邀请已复制，发给好友吧"))
+      .catch(() => toast(`房间号：${code}`));
+  } else {
+    toast(`房间号：${code}`);
+  }
+};
+
 // ---------- 网络回调 ----------
 net.onState = (state) => {
   if (state.phase === "WAITING") {
@@ -590,3 +963,6 @@ net.onLeave = () => {
   clearCodeInputs();
   show("lobby");
 };
+
+// ---------- 启动 ----------
+show("lobby");

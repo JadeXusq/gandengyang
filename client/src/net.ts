@@ -11,16 +11,62 @@ const WS_URL =
   }:2567`;
 const HTTP_URL = WS_URL.replace(/^ws/, "http");
 const DEVICE_KEY = "gdy.device";
+const RECONNECT_KEY = "gdy.reconnect";
 
 export function deviceId(): string {
   let id = localStorage.getItem(DEVICE_KEY);
   if (!id) {
-    id = Array.from(new Uint8Array(16), (b) =>
-      b.toString(16).padStart(2, "0")
-    ).join("");
+    // 随机生成 16 字节设备标识（历史上误用全零数组，导致所有设备共用同一 ID）
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    id = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
     localStorage.setItem(DEVICE_KEY, id);
   }
   return id;
+}
+
+/** HTTP 接口基地址（api.ts 复用） */
+export function httpBase(): string {
+  return HTTP_URL;
+}
+
+/** 本地保存的可恢复对局信息（刷新页面后用于重连） */
+export interface SavedMatch {
+  token: string;
+  roomId: string;
+  code: string;
+}
+
+export function getSavedMatch(): SavedMatch | null {
+  try {
+    const raw = localStorage.getItem(RECONNECT_KEY);
+    if (!raw) return null;
+    const m = JSON.parse(raw) as SavedMatch;
+    return m && m.token && m.roomId ? m : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveMatch(room: Room<any>): void {
+  const token = (room as { reconnectionToken?: string }).reconnectionToken;
+  if (!token) return;
+  try {
+    localStorage.setItem(
+      RECONNECT_KEY,
+      JSON.stringify({
+        token,
+        roomId: room.roomId,
+        code: String((room.state as { code?: string })?.code ?? ""),
+      } satisfies SavedMatch)
+    );
+  } catch {
+    // 隐私模式等场景下忽略
+  }
+}
+
+function clearSavedMatch(): void {
+  localStorage.removeItem(RECONNECT_KEY);
 }
 
 export interface RoundOver {
@@ -67,11 +113,43 @@ export class Net {
     );
   }
 
+  /** 直接按 roomId 加入（断线重连 - 等待期重进房间） */
+  async joinById(roomId: string, name: string): Promise<void> {
+    await this.leave().catch(() => undefined);
+    this.bind(
+      await this.client.joinById(roomId, { name, deviceId: deviceId() })
+    );
+  }
+
+  /** 用本地保存的 reconnectionToken 恢复对局（刷新页面后回到原座位） */
+  async reconnect(): Promise<void> {
+    const saved = getSavedMatch();
+    if (!saved) throw new Error("没有可恢复的对局");
+    await this.leave().catch(() => undefined);
+    try {
+      const room = await this.client.reconnect(saved.token);
+      this.bind(room);
+    } catch {
+      clearSavedMatch();
+      throw new Error("对局已结束或座位已释放");
+    }
+  }
+
   private bind(room: Room<any>): void {
     this.room = room;
+    saveMatch(room);
     room.onMessage("joined", (m: { seat: number }) => {
       this.mySeat = m.seat;
     });
+    // 重连时服务端不会重发 joined，从 state 反推自己的座位
+    const syncSeatFromState = () => {
+      if (this.mySeat >= 0) return;
+      const players = (room.state as { players?: Map<string, { seat: number }> })
+        ?.players;
+      players?.forEach((p, sessionId) => {
+        if (String(sessionId) === room.sessionId) this.mySeat = p.seat;
+      });
+    };
     room.onMessage("hand", (hand: number[]) => {
       this.hand = hand;
       this.onHand?.();
@@ -80,9 +158,15 @@ export class Net {
     room.onMessage("error", (e: { message: string }) =>
       this.onError?.(e.message)
     );
-    room.onStateChange(() => this.onState?.(room.state));
+    room.onStateChange(() => {
+      syncSeatFromState();
+      this.onState?.(room.state);
+    });
     room.onLeave(() => {
       this.room = null;
+      this.mySeat = -1;
+      this.hand = [];
+      clearSavedMatch();
       this.onLeave?.();
     });
   }
@@ -107,6 +191,9 @@ export class Net {
     const room = this.room;
     if (!room) return;
     this.room = null;
+    this.mySeat = -1;
+    this.hand = [];
+    clearSavedMatch();
     await room.leave(true);
   }
 }

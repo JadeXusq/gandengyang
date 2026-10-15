@@ -169,57 +169,353 @@
         <div class="lobby-spacer"></div>
       </div>
 
-      <!-- 底部导航 -->
-      <nav class="bottom-nav">
-        <button class="nav-item active" data-tab="home">
+    </div>
+
+    <!-- 底部导航（Tab 主界面全局组件） -->
+    <nav id="bottom-nav" class="bottom-nav">
+      <button class="nav-item active" data-tab="home">
+        <svg
+          viewBox="0 0 24 24"
+          width="22"
+          height="22"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+        <span>首页</span>
+      </button>
+      <button class="nav-item" data-tab="rank">
+        <svg
+          viewBox="0 0 24 24"
+          width="22"
+          height="22"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+          <path d="M4 22h16" />
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22" />
+          <path
+            d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"
+          />
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+        </svg>
+        <span>排行榜</span>
+      </button>
+      <button class="nav-item" data-tab="me">
+        <svg
+          viewBox="0 0 24 24"
+          width="22"
+          height="22"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+        <span>我的</span>
+      </button>
+    </nav>
+
+    <!-- ========== 排行榜 ========== -->
+    <div id="rank" class="screen hidden">
+      <div class="page-scroll">
+        <div class="page-header">
+          <h2 class="page-title">排行榜</h2>
+          <p class="page-sub">按总积分排名 · 每日刷新</p>
+        </div>
+
+        <!-- 领奖台 -->
+        <div class="podium" id="podium"></div>
+
+        <!-- 榜单列表 -->
+        <div class="card rank-list-card">
+          <div class="rank-list" id="rank-list"></div>
+        </div>
+
+        <!-- 我的排名 -->
+        <div class="card my-rank-card hidden" id="my-rank-card">
+          <div class="my-rank-badge" id="my-rank-badge">—</div>
+          <div class="my-rank-avatar" id="my-rank-avatar">我</div>
+          <div class="my-rank-info">
+            <div class="my-rank-name" id="my-rank-name">无名客</div>
+            <div class="my-rank-stats" id="my-rank-stats"></div>
+          </div>
+          <div class="my-rank-score" id="my-rank-score">+0</div>
+        </div>
+
+        <div class="page-spacer"></div>
+      </div>
+    </div>
+
+    <!-- ========== 个人中心 ========== -->
+    <div id="me" class="screen hidden">
+      <div class="page-scroll">
+        <div class="page-header">
+          <h2 class="page-title">我的</h2>
+        </div>
+
+        <!-- 资料卡 -->
+        <div class="card profile-card">
+          <div class="profile-avatar">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+              <path
+                d="M12 2C12 2 4 8 4 13c0 2.8 2 5 4.7 5 1.2 0 2.2-.5 2.8-1.3 0 1.8-.7 3.3-2 4.5h5c-1.3-1.2-2-2.7-2-4.5.6.8 1.6 1.3 2.8 1.3 2.7 0 4.7-2.2 4.7-5C20 8 12 2 12 2z"
+              />
+            </svg>
+          </div>
+          <div class="profile-info">
+            <div class="profile-name-row">
+              <span class="profile-name" id="profile-name">无名客</span>
+              <button class="btn-link" id="btn-edit-name">修改</button>
+            </div>
+            <div class="profile-id" id="profile-id">游客战绩</div>
+            <div class="name-edit-row hidden" id="name-edit-row">
+              <input
+                class="text-input"
+                id="name-input"
+                maxlength="8"
+                placeholder="输入新昵称（8 字以内）"
+              />
+              <button class="btn-link" id="btn-save-name">保存</button>
+            </div>
+          </div>
+          <button class="btn-gold-outline btn-bind" id="btn-bind">
+            绑定账号
+          </button>
+        </div>
+
+        <!-- 战绩网格 -->
+        <div class="profile-stats-grid">
+          <div class="card profile-stat-card">
+            <div class="profile-stat-value" id="me-games">0</div>
+            <div class="profile-stat-label">总场次</div>
+          </div>
+          <div class="card profile-stat-card">
+            <div class="profile-stat-value" id="me-wins">0</div>
+            <div class="profile-stat-label">胜场</div>
+          </div>
+          <div class="card profile-stat-card">
+            <div class="profile-stat-value" id="me-winrate">0%</div>
+            <div class="profile-stat-label">胜率</div>
+          </div>
+          <div class="card profile-stat-card">
+            <div class="profile-stat-value gold" id="me-net">+0</div>
+            <div class="profile-stat-label">总积分</div>
+          </div>
+        </div>
+
+        <!-- 设置列表 -->
+        <div class="card settings-list">
+          <div class="setting-row">
+            <span class="setting-label">音效</span>
+            <button
+              class="switch on"
+              id="switch-sound"
+              aria-label="音效开关"
+            >
+              <span class="switch-knob"></span>
+            </button>
+          </div>
+          <div class="setting-divider"></div>
+          <div class="setting-row clickable" id="row-rules">
+            <span class="setting-label">玩法规则</span>
+            <svg
+              class="row-chevron"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </div>
+          <div class="setting-divider"></div>
+          <div class="setting-row clickable" id="row-restore">
+            <span class="setting-label">恢复账号</span>
+            <svg
+              class="row-chevron"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </div>
+          <div class="setting-divider"></div>
+          <div class="setting-row clickable" id="row-feedback">
+            <span class="setting-label">意见反馈</span>
+            <svg
+              class="row-chevron"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </div>
+          <div class="setting-divider"></div>
+          <div class="setting-row">
+            <span class="setting-label">关于干瞪眼</span>
+            <span class="setting-value">v1.0.0</span>
+          </div>
+        </div>
+
+        <!-- 恢复账号面板 -->
+        <div class="card account-panel hidden" id="account-panel">
+          <div class="account-panel-title">恢复账号</div>
+          <p class="account-panel-hint">
+            输入其他设备上的账号 ID 与凭证，即可把该账号的战绩合并到本机。
+          </p>
+          <input
+            class="text-input"
+            id="restore-id"
+            placeholder="账号 ID"
+            autocomplete="off"
+          />
+          <input
+            class="text-input"
+            id="restore-token"
+            placeholder="账号凭证"
+            autocomplete="off"
+          />
+          <div class="account-panel-actions">
+            <button
+              class="btn-gold-outline"
+              id="btn-restore-cancel"
+            >
+              取消
+            </button>
+            <button class="btn-gold" id="btn-restore-confirm">绑定</button>
+          </div>
+        </div>
+
+        <div class="page-spacer"></div>
+      </div>
+    </div>
+
+    <!-- ========== 玩法说明 ========== -->
+    <div id="rules" class="screen hidden">
+      <div class="top-bar">
+        <button class="icon-btn back-btn" id="btn-rules-back">
           <svg
             viewBox="0 0 24 24"
-            width="22"
-            height="22"
+            width="24"
+            height="24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
           >
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
+            <polyline points="15 18 9 12 15 6" />
           </svg>
-          <span>首页</span>
         </button>
-        <button class="nav-item" data-tab="rank">
-          <svg
-            viewBox="0 0 24 24"
-            width="22"
-            height="22"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-            <path d="M4 22h16" />
-            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22" />
-            <path
-              d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"
-            />
-            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-          </svg>
-          <span>排行榜</span>
+        <h2 class="top-bar-title">玩法说明</h2>
+        <span class="top-bar-placeholder"></span>
+      </div>
+
+      <div class="page-scroll">
+        <!-- 游戏目标 -->
+        <div class="card rules-card">
+          <div class="rules-card-title">游戏目标</div>
+          <p class="rules-card-text">
+            最先出完手牌的玩家获胜。2-5 人用 1 副牌，6-10 人用 2
+            副牌；庄家 6 张，其余人各 5 张。
+          </p>
+        </div>
+
+        <!-- 接牌规则 -->
+        <div class="card rules-card rules-card-gold">
+          <div class="rules-card-title">接牌规则 · 核心</div>
+          <div class="rules-demo">
+            <div class="card-el">
+              <span class="suit-sym">♠</span>
+              <span class="rank-sym">7</span>
+            </div>
+            <svg
+              class="rules-demo-arrow"
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="4" y1="12" x2="18" y2="12" />
+              <polyline points="13 6 19 12 13 18" />
+            </svg>
+            <div class="card-el red">
+              <span class="suit-sym">♥</span>
+              <span class="rank-sym">8</span>
+            </div>
+            <span class="rules-demo-label">上家出 7，只能接 8</span>
+          </div>
+          <p class="rules-card-text">必须同牌型、同长度，起始牌正好大 1。</p>
+          <p class="rules-card-text">
+            单 2 和炸弹随时可以接；大小王是百搭（除 2 外）。
+          </p>
+          <p class="rules-card-text">大王 + 小王 = 王炸，可压一切牌型。</p>
+        </div>
+
+        <!-- 牌型一览 -->
+        <div class="card rules-card">
+          <div class="rules-card-title">牌型一览</div>
+          <div class="rules-type-row">
+            <span class="rules-type-name">单张</span>
+            <span class="rules-type-desc">任意 1 张牌</span>
+          </div>
+          <div class="rules-type-row">
+            <span class="rules-type-name">对子</span>
+            <span class="rules-type-desc">2 张同点数</span>
+          </div>
+          <div class="rules-type-row">
+            <span class="rules-type-name">顺子</span>
+            <span class="rules-type-desc">3 张起连续单牌（不含 2）</span>
+          </div>
+          <div class="rules-type-row">
+            <span class="rules-type-name">连对</span>
+            <span class="rules-type-desc">3 对起连续对子（不含 2）</span>
+          </div>
+          <div class="rules-type-row">
+            <span class="rules-type-name">炸弹</span>
+            <span class="rules-type-desc">3-4 张同点数，可压任意牌型</span>
+          </div>
+          <div class="rules-type-row">
+            <span class="rules-type-name">王炸</span>
+            <span class="rules-type-desc">大小王组合，最大</span>
+          </div>
+        </div>
+
+        <!-- 计分规则 -->
+        <div class="card rules-card">
+          <div class="rules-card-title">计分规则</div>
+          <p class="rules-card-text">输家按剩余手牌扣分：剩 N 张 − N 分。</p>
+          <p class="rules-card-text">
+            一张未出（仍是初始手牌）→ 双倍扣分。
+          </p>
+          <p class="rules-card-text">本局每个炸弹，输分倍率 +1。</p>
+          <p class="rules-card-text">剩 1 张未报单被发现 → 额外罚分。</p>
+        </div>
+
+        <button class="btn-gold rules-cta" id="btn-rules-start">
+          明白了，去开局
         </button>
-        <button class="nav-item" data-tab="me">
-          <svg
-            viewBox="0 0 24 24"
-            width="22"
-            height="22"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          <span>我的</span>
-        </button>
-      </nav>
+
+        <div class="page-spacer"></div>
+      </div>
     </div>
 
     <!-- ========== 房间等待 ========== -->
