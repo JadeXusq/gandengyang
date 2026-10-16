@@ -11,6 +11,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: "2567"
+    volumes:
+      # 战绩落盘（server/src/store.ts 写 cwd/data，容器内即 /app/server/data）
+      # 宿主机 server/data 由部署流程从线上抢救/播种，重新打包时请排除 server/data
+      - ./server/data:/app/server/data
 
   # 前端静态站点（Vite 构建产物 client/dist，宿主机 8080）
   web:
