@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>干瞪眼 · 横屏游戏化设计原型</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<!-- 852 × 393 横屏舞台，JS 按窗口等比缩放 -->
+<div id="stage">
+
+  <!-- ==================== 大厅 ==================== -->
+  <section id="scr-lobby" class="screen active">
+    <div class="lobby-scene">
+      <div class="lobby-glow"></div>
+      <div class="float-cards">
+        <i class="fc fc1">♠</i><i class="fc fc2">♥</i><i class="fc fc3">♦</i><i class="fc fc4">♣</i>
+      </div>
+    </div>
+
+    <div class="lobby-left">
+      <div class="logo-badge">经典棋牌</div>
+      <h1 class="logo">干瞪眼</h1>
+      <p class="logo-sub">四川经典 · 接龙扑克</p>
+      <div class="logo-tags">
+        <span>2-5 人</span><span>·</span><span>接牌大 1</span><span>·</span><span>炸弹翻天</span>
+      </div>
+    </div>
+
+    <div class="lobby-menu">
+      <button class="gbtn gbtn-xl" id="btn-quick">
+        <span class="gbtn-gloss"></span>快速开始
+      </button>
+      <div class="join-row">
+        <input id="lobby-code" maxlength="6" placeholder="6 位房号" />
+        <button class="gbtn gbtn-md" id="btn-lobby-join">加入</button>
+      </div>
+      <div class="lobby-icon-row">
+        <button class="icon-tile" id="btn-open-rank"><b>榜</b><span>排行榜</span></button>
+        <button class="icon-tile" id="btn-open-me"><b>我</b><span>我的</span></button>
+        <button class="icon-tile" id="btn-open-rules"><b>规</b><span>玩法</span></button>
+      </div>
+    </div>
+
+    <div class="lobby-foot">游客即玩 · 无需注册 · 数据本地保存</div>
+  </section>
+
+  <!-- ==================== 房间等待 ==================== -->
+  <section id="scr-room" class="screen">
+    <div class="room-top">
+      <button class="rbtn-icon" id="btn-room-back">‹</button>
+      <span class="room-title">房间等待</span>
+      <span class="room-code-chip">房号 <b id="room-code">482 913</b>
+        <button class="copy-mini" id="btn-copy">复制</button>
+      </span>
+    </div>
+
+    <div class="room-body">
+      <div class="room-table">
+        <div class="room-felt"></div>
+        <div class="rseat rseat-me" id="rseat-0"><div class="rseat-av">我</div><span>我</span><em>已准备</em></div>
+        <div class="rseat rseat-left" id="rseat-1"><div class="rseat-av empty">+</div><span>空座</span><em>等待加入</em></div>
+        <div class="rseat rseat-top" id="rseat-2"><div class="rseat-av empty">+</div><span>空座</span><em>等待加入</em></div>
+        <div class="rseat rseat-right" id="rseat-3"><div class="rseat-av empty">+</div><span>空座</span><em>等待加入</em></div>
+      </div>
+
+      <aside class="room-side">
+        <div class="panel">
+          <div class="panel-title">对局设置</div>
+          <div class="p-row"><span>人数上限</span><b>4 人</b></div>
+          <div class="p-row"><span>用牌</span><b>1 副 · 54 张</b></div>
+          <div class="p-row"><span>摸牌</span><b>全员过牌各摸 1 张</b></div>
+          <div class="p-variants">
+            <span class="v-chip on">炸弹加倍</span>
+            <span class="v-chip">报单罚分</span>
+            <span class="v-chip">赖子打法</span>
+          </div>
+        </div>
+        <p class="room-hint">人齐后全员准备即可开局<br />也可以添加机器人快速开始</p>
+      </aside>
+    </div>
+
+    <div class="room-actions">
+      <button class="gbtn gbtn-md gbtn-ghost" id="btn-add-bot">添加机器人</button>
+      <button class="gbtn gbtn-lg" id="btn-ready">准 备</button>
+    </div>
+  </section>
+
+  <!-- ==================== 牌桌对战 ==================== -->
+  <section id="scr-table" class="screen">
+    <div class="table-scene">
+      <div class="table-spot"></div>
+      <div class="table-felt"></div>
+    </div>
+
+    <!-- 顶部 HUD -->
+    <div class="hud">
+      <span class="hud-chip">房号 <b id="hud-code">482913</b></span>
+      <span class="hud-chip">底牌 <b id="hud-stock">33</b></span>
+      <span class="hud-chip gold" id="hud-bomb">炸弹 ×0</span>
+      <span class="hud-spacer"></span>
+      <button class="hud-exit" id="btn-table-exit">退出</button>
+    </div>
+
+    <!-- 对手座位：左 / 上 / 右 -->
+    <div class="seat seat-left" id="seat-1">
+      <div class="av-wrap">
+        <svg class="ring" viewBox="0 0 72 72"><circle class="ring-bg" cx="36" cy="36" r="32"/><circle class="ring-fg" cx="36" cy="36" r="32"/></svg>
+        <div class="avatar">明</div>
+      </div>
+      <div class="seat-name">小明 <em class="cnt">8 张</em></div>
+      <div class="play-slot" id="play-1"></div>
+    </div>
+
+    <div class="seat seat-top" id="seat-2">
+      <div class="play-slot top" id="play-2"></div>
+      <div class="av-wrap">
+        <svg class="ring" viewBox="0 0 72 72"><circle class="ring-bg" cx="36" cy="36" r="32"/><circle class="ring-fg" cx="36" cy="36" r="32"/></svg>
+        <div class="avatar">红</div>
+      </div>
+      <div class="seat-name">小红 <em class="cnt">5 张</em></div>
+    </div>
+
+    <div class="seat seat-right" id="seat-3">
+      <div class="av-wrap">
+        <svg class="ring" viewBox="0 0 72 72"><circle class="ring-bg" cx="36" cy="36" r="32"/><circle class="ring-fg" cx="36" cy="36" r="32"/></svg>
+        <div class="avatar">发</div>
+      </div>
+      <div class="seat-name">阿发 <em class="cnt">9 张</em></div>
+      <div class="play-slot" id="play-3"></div>
+    </div>
+
+    <!-- 中央提示 -->
+    <div class="table-banner" id="table-banner"></div>
+
+    <!-- 我的信息 + 手牌 + 操作 -->
+    <div class="my-strip">
+      <div class="my-info">
+        <div class="avatar me">我</div>
+        <div class="my-meta"><b>我</b><span id="my-count">8 张</span></div>
+        <span class="report-badge hidden" id="my-report">报单</span>
+      </div>
+
+      <div class="hand-box"><div class="hand" id="hand"></div></div>
+
+      <div class="actions">
+        <button class="gbtn gbtn-pass hidden" id="btn-pass">不 出</button>
+        <button class="gbtn gbtn-play" id="btn-play">出 牌</button>
+      </div>
+    </div>
+
+    <!-- 牌堆视觉 -->
+    <div class="deck-visual" id="deck-visual"></div>
+  </section>
+
+  <!-- ==================== 结算 ==================== -->
+  <section id="scr-result" class="screen">
+    <div class="result-dim"></div>
+    <div class="result-panel">
+      <div class="result-crown">♛</div>
+      <h2 class="result-title win" id="result-title">胜 利</h2>
+      <div class="result-score"><span id="result-score">+18</span></div>
+      <div class="result-rows" id="result-rows"></div>
+      <div class="result-actions">
+        <button class="gbtn gbtn-lg" id="btn-again">再来一局</button>
+        <button class="gbtn gbtn-md gbtn-ghost" id="btn-result-exit">返回大厅</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 排行榜 / 玩法 overlay ==================== -->
+  <div class="overlay" id="ov-rank">
+    <div class="ov-panel">
+      <div class="ov-head"><span>排行榜</span><button class="ov-close" data-close="ov-rank">✕</button></div>
+      <div class="ov-body" id="rank-body"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="ov-me">
+    <div class="ov-panel narrow">
+      <div class="ov-head"><span>我的</span><button class="ov-close" data-close="ov-me">✕</button></div>
+      <div class="ov-body me-body">
+        <div class="me-card">
+          <div class="avatar me big">我</div>
+          <div class="me-info"><b>无名客</b><span>游客战绩 · 设备本地</span></div>
+          <button class="gbtn gbtn-sm" id="btn-bind">绑定账号</button>
+        </div>
+        <div class="me-grid">
+          <div><b>128</b><span>总场次</span></div>
+          <div><b>47</b><span>胜场</span></div>
+          <div><b>36.7%</b><span>胜率</span></div>
+          <div class="gold"><b>+326</b><span>总积分</span></div>
+        </div>
+        <div class="me-rows">
+          <div class="p-row"><span>音效</span><span class="mini-switch on"><i></i></span></div>
+          <div class="p-row clickable" id="me-rules"><span>玩法规则</span><b>›</b></div>
+          <div class="p-row clickable" id="me-restore"><span>恢复账号</span><b>›</b></div>
+          <div class="p-row"><span>关于干瞪眼</span><b>v1.0.0</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="ov-rules">
+    <div class="ov-panel narrow">
+      <div class="ov-head"><span>玩法说明</span><button class="ov-close" data-close="ov-rules">✕</button></div>
+      <div class="ov-body rules-body">
+        <div class="rules-demo">
+          <div class="card mini" data-r="7" data-s="S"></div>
+          <span class="arrow">→</span>
+          <div class="card mini red" data-r="8" data-s="H"></div>
+          <span class="demo-label">上家出 7，只能接 8</span>
+        </div>
+        <p><b>接牌规则</b>：同牌型、同长度，起始牌正好大 1；单 2 和炸弹随时可接；大小王是百搭（除 2 外），王炸最大。</p>
+        <p><b>牌型</b>：单张 / 对子 / 顺子（3 张起，不含 2）/ 连对（3 对起）/ 炸弹（3-4 张同点）/ 王炸。</p>
+        <p><b>计分</b>：输家按剩余手牌扣分（剩 N 张 − N 分），一张未出双倍，每个炸弹输分倍率 +1。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 特效层 -->
+  <div class="fx" id="fx"></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

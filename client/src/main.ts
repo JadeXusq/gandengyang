@@ -66,38 +66,24 @@ function toast(msg: string, ms = 2200): void {
 }
 
 // ---------- 界面切换 ----------
-type ScreenId =
-  | "lobby"
-  | "rank"
-  | "me"
-  | "room"
-  | "table"
-  | "result"
-  | "rules";
+type OverlayId = "rank" | "me" | "rules" | "result";
+type ScreenId = "lobby" | "room" | "table";
 
-const ALL_SCREENS: ScreenId[] = [
-  "lobby",
-  "rank",
-  "me",
-  "room",
-  "table",
-  "result",
-  "rules",
-];
-const TAB_SCREENS: ScreenId[] = ["lobby", "rank", "me"];
+const MAIN_SCREENS: ScreenId[] = ["lobby", "room", "table"];
+const OVERLAYS: OverlayId[] = ["rank", "me", "rules", "result"];
 
 function show(id: ScreenId): void {
-  ALL_SCREENS.forEach((s) => $(s).classList.toggle("hidden", s !== id));
-  // 底部导航仅 Tab 主界面显示
-  $("bottom-nav").classList.toggle("hidden", !TAB_SCREENS.includes(id));
-  // 导航激活态（首页 Tab 的 data-tab 为 home，屏幕 ID 为 lobby）
-  const activeTab = id === "lobby" ? "home" : id;
-  document.querySelectorAll(".nav-item").forEach((b) =>
-    b.classList.toggle("active", (b as HTMLElement).dataset.tab === activeTab)
-  );
-  if (id === "rank") void renderLeaderboard();
-  if (id === "me") void renderProfile();
+  MAIN_SCREENS.forEach((s) => $(s).classList.toggle("hidden", s !== id));
+  // 切换主屏时关闭所有覆盖层
+  OVERLAYS.forEach((o) => $(o).classList.add("hidden"));
   if (id === "lobby") void refreshHome();
+}
+
+function openOverlay(id: OverlayId): void {
+  $(id).classList.remove("hidden");
+}
+function closeOverlay(id: OverlayId): void {
+  $(id).classList.add("hidden");
 }
 
 // ---------- 小工具 ----------
@@ -252,6 +238,9 @@ function renderRoom(state: any): void {
       } else if (p.isAi) {
         tagCls = "robot-tag";
         tagText = "机器人";
+      } else if (p.sessionId === String(state.hostSessionId)) {
+        tagCls = "host-tag";
+        tagText = "房主";
       }
 
       div.innerHTML = `
@@ -270,7 +259,6 @@ function renderRoom(state: any): void {
   }
 
   const joined = players.length;
-  $("seat-count").textContent = `${joined} / ${state.maxPlayers} 已加入`;
 
   const me = players.find((x) => x.sessionId === net.room?.sessionId);
   $("btn-ready").textContent = me?.ready ? "取消准备" : "准备";
@@ -297,15 +285,23 @@ $("btn-copy-code").onclick = () => {
 };
 
 // ---------- 牌桌渲染 ----------
-function cardHtml(id: number, selected: boolean): string {
+function cardHtml(
+  id: number,
+  selected: boolean,
+  transform?: string,
+  z?: number
+): string {
+  const style = transform
+    ? ` style="transform:${transform};z-index:${z}"`
+    : "";
   if (id === 52)
     return `<div class="card-el joker-small${
       selected ? " selected" : ""
-    }" data-id="${id}"><span class="rank-sym">小</span></div>`;
+    }" data-id="${id}"${style}><span class="rank-sym">小</span></div>`;
   if (id === 53)
     return `<div class="card-el joker-big${
       selected ? " selected" : ""
-    }" data-id="${id}"><span class="rank-sym">大</span></div>`;
+    }" data-id="${id}"${style}><span class="rank-sym">大</span></div>`;
   const c = cardFromId(id);
   const red = isRed(id);
   const suitSym =
@@ -315,14 +311,29 @@ function cardHtml(id: number, selected: boolean): string {
       c.rank - 1
     ] ?? "?";
   const cls = `card-el${red ? " red" : ""}${selected ? " selected" : ""}`;
-  return `<div class="${cls}" data-id="${id}"><span class="suit-sym">${suitSym}</span><span class="rank-sym">${rankSym}</span></div>`;
+  return `<div class="${cls}" data-id="${id}"${style}><span class="rank-sym">${rankSym}</span><span class="suit-sym">${suitSym}</span></div>`;
 }
 
 function renderHand(): void {
   const el = $("hand");
   const sorted = [...net.hand].sort((a, b) => cardWeight(a) - cardWeight(b));
+  const n = sorted.length;
+  const mid = (n - 1) / 2;
+  const maxAngle = Math.min(32, Math.max(10, n * 3));
+  const step = n > 1 ? maxAngle / (n - 1) : 0;
+  // 横向间距：牌少时舒展（最多 64px），牌多时收紧（至少 22px 露出牌角）
+  const spacing = n > 1 ? Math.min(64, Math.max(22, 620 / (n - 1))) : 0;
   el.innerHTML = sorted
-    .map((id) => cardHtml(id, selectedCards.has(id)))
+    .map((id, i) => {
+      const angle = (i - mid) * step;
+      const selected = selectedCards.has(id);
+      const z = selected ? 100 + i : i + 1;
+      // 选中上抬 26px；边缘牌随弧面轻微上抬 2.5px/格
+      const lift = (selected ? -26 : 0) - Math.abs(i - mid) * 2.5;
+      const dx = (i - mid) * spacing;
+      const transform = `translateX(calc(-50% + ${dx}px)) rotate(${angle}deg) translateY(${lift}px)`;
+      return cardHtml(id, selected, transform, z);
+    })
     .join("");
 }
 
@@ -387,7 +398,7 @@ function renderTable(state: any): void {
   const lp = state.lastPlay;
   const lpLabel = $("last-play-label");
   const lpEl = $("last-play");
-  if (lp && lp.playType && lp.cards?.length) {
+  if (lp && lp.cards && lp.cards.length) {
     const who = players.find((p) => p.seat === lp.playerSeat);
     const typeLabel =
       lp.playType === "STRAIGHT"
@@ -401,9 +412,12 @@ function renderTable(state: any): void {
         : lp.playType || "";
     lpLabel.innerHTML = who ? `${who.name} 出牌 · ${typeLabel}` : "";
     lpEl.innerHTML = [...lp.cards].map((id) => cardHtml(id, false)).join("");
+  } else if (state.gamePhase === "WAITING_LEAD") {
+    lpLabel.innerHTML = "";
+    lpEl.innerHTML = `<span style="color:#7fb89a;font-size:1rem;letter-spacing:2px">自由出牌</span>`;
   } else {
     lpLabel.innerHTML = "";
-    lpEl.innerHTML = `<span style="color:#5a8a6a;font-size:0.9rem">自由出牌</span>`;
+    lpEl.innerHTML = `<span class="pass-bubble">不出</span>`;
   }
 
   // 回合提示
@@ -573,8 +587,9 @@ function renderResult(r: RoundOver): void {
     .sort((a, b) => b.score - a.score);
 
   const winner = ranked[0];
-  const winnerRank = players.findIndex((p) => p.seat === winner.seat) + 1;
 
+  $("result-title").textContent =
+    winner.seat === net.mySeat ? "胜 利" : "本局结束";
   $("result-sub").textContent = `房间 ${
     state.code || ""
   } · 标准规则 · 炸弹加倍`;
@@ -585,7 +600,6 @@ function renderResult(r: RoundOver): void {
   $("winner-score").textContent = `${winner.score > 0 ? "+" : ""}${
     winner.score
   }`;
-  $("winner-badge").textContent = `第 ${winnerRank} 名 · 胜`;
 
   // 其他玩家列表
   const listEl = $("result-list");
@@ -625,7 +639,7 @@ function renderResult(r: RoundOver): void {
   const reportCount = players.filter((p) => p.reported).length;
   $("stat-report").textContent = `报单 ${reportCount} 次`;
 
-  show("result");
+  openOverlay("result");
 }
 
 $("btn-again").onclick = () => {
@@ -642,16 +656,11 @@ $("btn-exit").onclick = async () => {
 let resumeMatch: ActiveMatch | null = null;
 
 async function refreshHome(): Promise<void> {
-  // 战绩卡
+  // 预取本地战绩（大厅已不展示战绩卡，元素移至「我的」弹窗）
   try {
-    const p = await fetchProfile();
-    if (p) {
-      $("stat-games").textContent = String(p.games);
-      $("stat-winrate").textContent = winRate(p);
-      $("stat-points").textContent = fmtScore(p.totalNet);
-    }
+    await fetchProfile();
   } catch {
-    // 服务未启动时保留默认展示
+    // 服务未启动时忽略
   }
   // 断线重连横幅
   try {
@@ -894,25 +903,23 @@ $("switch-sound").onclick = () => {
 };
 
 // ---------- 全局导航 ----------
-document.querySelectorAll(".nav-item").forEach((b) => {
+// 大厅三个图标瓦片 → 打开覆盖层
+(["btn-rank", "btn-me", "btn-rules"] as const).forEach((id) => {
+  const tab = (document.getElementById(id) as HTMLElement)?.dataset
+    .tab as OverlayId;
+  $(id).onclick = () => openOverlay(tab);
+});
+// 覆盖层关闭按钮
+document.querySelectorAll(".modal-close").forEach((b) => {
   b.addEventListener("click", () => {
-    const tab = (b as HTMLElement).dataset.tab;
-    const target: ScreenId | null =
-      tab === "home"
-        ? "lobby"
-        : tab === "rank" || tab === "me"
-        ? tab
-        : null;
-    if (target) show(target);
+    const t = (b as HTMLElement).dataset.close;
+    if (t) closeOverlay(t as OverlayId);
   });
 });
 
-$("btn-rules").onclick = () => show("rules");
-$("btn-rules-back").onclick = () => show("lobby");
-$("btn-rules-start").onclick = () => show("lobby");
-$("row-rules").onclick = () => show("rules");
+$("btn-rules-start").onclick = () => closeOverlay("rules");
+$("row-rules").onclick = () => openOverlay("rules");
 $("row-feedback").onclick = () => toast("反馈渠道即将开放，敬请期待");
-$("btn-stats-detail").onclick = () => show("me");
 
 // 分享房号
 $("btn-share").onclick = () => {
@@ -964,5 +971,15 @@ net.onLeave = () => {
   show("lobby");
 };
 
+// ---------- 舞台自适应缩放 ----------
+function fitStage(): void {
+  const stage = document.getElementById("stage");
+  if (!stage) return;
+  const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720, 1);
+  stage.style.transform = `scale(${scale})`;
+}
+window.addEventListener("resize", fitStage);
+
 // ---------- 启动 ----------
+fitStage();
 show("lobby");
